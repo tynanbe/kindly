@@ -1,0 +1,36 @@
+{
+  "fmt": {
+    "include": [
+      "*.json",
+      "*.md",
+      "./"
+    ]
+  },
+  "lint": {
+    "include": [
+      "./"
+    ],
+    "rules": {
+      "tags": ["recommended"],
+      "include": [
+        "default-param-last",
+        "eqeqeq",
+        "explicit-function-return-type",
+        "explicit-module-boundary-types",
+        "guard-for-in",
+        "no-await-in-loop",
+        "no-const-assign",
+        "no-eval",
+        "no-implicit-declare-namespace-export",
+        "no-sparse-arrays",
+        "no-sync-fn-in-async-fn"
+      ],
+      "exclude": [
+        "no-empty",
+        "no-explicit-any",
+        "no-unused-vars",
+        "prefer-const"
+      ]
+    }
+  }
+}

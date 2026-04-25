@@ -1,0 +1,40 @@
+name = "kindly"
+version = "0.1.0-dev"
+description = "A nice little task runner"
+licences = ["Apache-2.0"]
+gleam = ">= 1.14.0"
+target = "javascript"
+
+[repository]
+repo = "kindly"
+user = "tynanbe"
+type = "github"
+
+[[links]]
+title = "Website"
+href = "https://gleam.run/"
+
+[[documentation.pages]]
+title = "Quickstart guide"
+path = "quickstart.html"
+source = "./pages/quickstart.md"
+
+[[documentation.pages]]
+title = "Examples directory"
+path = "examples.html"
+source = "./pages/examples.md"
+
+[dependencies]
+gleam_javascript = ">= 1.0.0 and < 2.0.0"
+gleam_stdlib = ">= 0.53.0 and < 2.0.0"
+string_width = ">= 3.3.1 and < 4.0.0"
+
+[dev-dependencies]
+gleeunit = ">= 1.6.0 and < 2.0.0"
+
+[javascript]
+runtime = "deno"
+typescript_declarations = true
+
+[javascript.deno]
+allow_all = true

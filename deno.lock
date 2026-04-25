@@ -1,0 +1,20 @@
+{
+  "version": "5",
+  "specifiers": {
+    "npm:@types/node@*": "18.16.19"
+  },
+  "npm": {
+    "@types/node@18.16.19": {
+      "integrity": "sha512-IXl7o+R9iti9eBW4Wg2hx1xQDig183jj7YLn8F7udNceyfkbn1ZxmzZXuak20gR40D7pIkIY1kYGx5VIGbaHKA=="
+    }
+  },
+  "workspace": {
+    "packageJson": {
+      "dependencies": [
+        "npm:@types/node@^24.10.4",
+        "npm:tsdown@>=0.21.10 <2.0.0",
+        "npm:typescript@^5.9.3"
+      ]
+    }
+  }
+}

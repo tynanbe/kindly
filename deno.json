@@ -1,0 +1,60 @@
+{
+  "name": "@tynanbe/kindly",
+  "version": "0.1.0-dev",
+  "exports": "./mod.ts",
+  "publish": {
+    "include": [
+      "LICENSE",
+      "NOTICE",
+      "README.md",
+      "gleam_stdlib",
+      "mod.ts",
+      "prelude.d.mts",
+      "prelude.mjs",
+      "priv/dist",
+      "src/generated.ts",
+      "src/javascript_api.ts",
+      "src/kindly_ffi.ts"
+    ]
+  },
+  "fmt": {
+    "include": [
+      "*.json",
+      "*.md",
+      "*.ts",
+      "dev/",
+      "src/",
+      "test/"
+    ]
+  },
+  "lint": {
+    "include": [
+      "*.ts",
+      "dev/",
+      "src/",
+      "test/"
+    ],
+    "rules": {
+      "tags": ["recommended"],
+      "include": [
+        "default-param-last",
+        "eqeqeq",
+        "explicit-function-return-type",
+        "explicit-module-boundary-types",
+        "guard-for-in",
+        "no-await-in-loop",
+        "no-const-assign",
+        "no-eval",
+        "no-implicit-declare-namespace-export",
+        "no-sparse-arrays",
+        "no-sync-fn-in-async-fn"
+      ],
+      "exclude": [
+        "no-empty",
+        "no-explicit-any",
+        "no-unused-vars",
+        "prefer-const"
+      ]
+    }
+  }
+}

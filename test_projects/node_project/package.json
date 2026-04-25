@@ -1,0 +1,12 @@
+{
+  "name": "node_project",
+  "version": "0.0.0",
+  "author": "Tynan Beatty (https://github.com/tynanbe)",
+  "license": "Apache-2.0",
+  "exports": "./handbook.js",
+  "main": "handbook.js",
+  "type": "module",
+  "devDependencies": {
+    "@tynanbe/kindly": "file:../../"
+  }
+}

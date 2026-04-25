@@ -1,0 +1,53 @@
+<svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="768" height="768" viewBox="72 72 624 624">
+<defs>
+  <path
+    id="sparkle"
+    d="
+      M 384,384
+      C 404 484, 384 464, 484 484
+      C 384 504, 404 484, 384 584
+      C 364 484, 384 504, 284 484
+      C 384 464, 364 484, 384 384
+    "
+    fill="#fefefc"
+    stroke="#fefefc"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    stroke-width="24"
+  />
+</defs>
+<!-- <rect x="0" y="0" width="2560" height="2560" />
+<path
+  id="heart-template"
+  d="
+    M 558 480
+    L 384 600
+    L 210 480
+    C -50 300, 214 10, 384 250
+    C 554 10, 818 300, 558 480
+  "
+  fill-opacity="0"
+  stroke="grey"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+  stroke-width="45"
+/> -->
+<path
+  id="heart"
+  d="
+    M 436 565
+    L 384 600
+    L 210 480
+    C -50 300, 214 10, 384 250
+    C 547 23, 772 272, 613 432
+  "
+  fill-opacity="0"
+  stroke="#fefefc"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+  stroke-width="45"
+/>
+<use href="#sparkle" transform="scale(1.35, 1.35) translate(5, -115)" />
+<use href="#sparkle" transform="scale(0.6, 0.6) translate(30, 10)" />
+</svg>
+

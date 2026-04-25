@@ -1,0 +1,15 @@
+*.beam
+*.ez
+*.local
+*.log
+*.map
+*.swp
+*.tsbuildinfo
+.DS_Store
+.cache
+.env*
+.vscode
+/build
+erl_crash.dump
+node_modules
+TODO.md
