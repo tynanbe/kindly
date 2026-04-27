@@ -6,7 +6,7 @@
 
 // @internal
 export default {
-  version: new Uint8Array([48,46,49,46,48,45,100,101,118]) as Uint8Array,
+  version: new Uint8Array([48,46,49,46,48]) as Uint8Array,
 
   description: new Uint8Array([65,32,110,105,99,101,32,108,105,116,116,108,101,32,116,97,115,107,32,114,117,110,110,101,114]) as Uint8Array,
 

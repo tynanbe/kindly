@@ -104,11 +104,7 @@ var generated_default = {
 		46,
 		49,
 		46,
-		48,
-		45,
-		100,
-		101,
-		118
+		48
 	]),
 	description: new Uint8Array([
 		65,
