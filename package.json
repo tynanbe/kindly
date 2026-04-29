@@ -1,6 +1,6 @@
 {
   "name": "@tynanbe/kindly",
-  "version": "0.1.0",
+  "version": "0.2.0-dev",
   "description": "💖 A nice little task runner",
   "repository": {
     "type": "git",

@@ -102,9 +102,13 @@ var generated_default = {
 	version: new Uint8Array([
 		48,
 		46,
-		49,
+		50,
 		46,
-		48
+		48,
+		45,
+		100,
+		101,
+		118
 	]),
 	description: new Uint8Array([
 		65,

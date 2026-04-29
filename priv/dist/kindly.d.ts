@@ -98,6 +98,13 @@ declare function handbook(name: any): Handbook;
  */
 declare function main(): any;
 /**
+ * Fails loudly when attempting to run Kindly's CLI via
+ * `gleam run -t erlang -m kindly`.
+ *
+ * @ignore
+ */
+declare function panic_from_erlang_main(): void;
+/**
  * Applies the given `Theme` to Kindly output.
  */
 declare function theme(handbook: any, theme: any): Handbook;
@@ -166,6 +173,16 @@ declare function resolve(): any;
  * given arguments.
  */
 declare function just(bin: any, args: any): (_: any) => Promise<Result<undefined, undefined>>;
+/**
+ * Fails loudly when attempting to run Kindly's API with Erlang.
+ *
+ * @ignore
+ */
+declare function panic_from_erlang_api(): void;
+declare function panic_from_erlang_api1(_: any): void;
+declare function panic_from_erlang_api2(_: any, _1: any): void;
+declare function panic_from_erlang_api3(_: any, _1: any, _2: any): void;
+declare function panic_from_erlang_api4(_: any, _1: any, _2: any, _3: any): void;
 declare class Theme extends CustomType {
   constructor(highlight: any, heading: any, tag: any, first_tag: any, given_tag: any, flag: any, parameter: any, time: any, tab: any);
   highlight: any;
@@ -232,4 +249,4 @@ declare class Handbook extends CustomType {
   run: any;
 }
 //#endregion
-export { IoStream$Stderr, IoStream$Stdin, IoStream$Stdout, IoStream$isStderr, IoStream$isStdin, IoStream$isStdout, Stderr, Stdin, Stdout, Task, Task$Task, Task$Task$0, Task$Task$1, Task$Task$2, Task$Task$3, Task$Task$action, Task$Task$doc, Task$Task$group_doc, Task$Task$tags, Task$isTask, Theme, Theme$Theme, Theme$Theme$0, Theme$Theme$1, Theme$Theme$2, Theme$Theme$3, Theme$Theme$4, Theme$Theme$5, Theme$Theme$6, Theme$Theme$7, Theme$Theme$8, Theme$Theme$first_tag, Theme$Theme$flag, Theme$Theme$given_tag, Theme$Theme$heading, Theme$Theme$highlight, Theme$Theme$parameter, Theme$Theme$tab, Theme$Theme$tag, Theme$Theme$time, Theme$isTheme, ansi, command, command_step, default_theme, get_env, gleam_theme, group, handbook, is_terminal, just, main, map, now, option_to_optional, plain_theme, reject, resolve, set_env, step, styler, task, task_with_tasks, theme, unset_env };
+export { IoStream$Stderr, IoStream$Stdin, IoStream$Stdout, IoStream$isStderr, IoStream$isStdin, IoStream$isStdout, Stderr, Stdin, Stdout, Task, Task$Task, Task$Task$0, Task$Task$1, Task$Task$2, Task$Task$3, Task$Task$action, Task$Task$doc, Task$Task$group_doc, Task$Task$tags, Task$isTask, Theme, Theme$Theme, Theme$Theme$0, Theme$Theme$1, Theme$Theme$2, Theme$Theme$3, Theme$Theme$4, Theme$Theme$5, Theme$Theme$6, Theme$Theme$7, Theme$Theme$8, Theme$Theme$first_tag, Theme$Theme$flag, Theme$Theme$given_tag, Theme$Theme$heading, Theme$Theme$highlight, Theme$Theme$parameter, Theme$Theme$tab, Theme$Theme$tag, Theme$Theme$time, Theme$isTheme, ansi, command, command_step, default_theme, get_env, gleam_theme, group, handbook, is_terminal, just, main, map, now, option_to_optional, panic_from_erlang_api, panic_from_erlang_api1, panic_from_erlang_api2, panic_from_erlang_api3, panic_from_erlang_api4, panic_from_erlang_main, plain_theme, reject, resolve, set_env, step, styler, task, task_with_tasks, theme, unset_env };

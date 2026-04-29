@@ -2,6 +2,7 @@
 
 ## Kindly `v1.0.0`
 
+- [ ] Compile Kindly, Gleam handbooks (`-t js`) from Erlang-only Gleam projects
 - [ ] Clean up API
   - [ ] Remove `theme`, `default_theme`, `plain_theme`, `gleam_theme`, `styler`
   - [ ] Consider removing `ansi`
@@ -25,13 +26,14 @@
 - [ ] Consider `dev/handbook.gleam` vs `dev/project_dev.gleam`
 - [ ] Generate demos as avif when `vhs` supports it
 - [ ] Consider using `gleam_community/ansi`
-- [ ] Consider extracting `kindly/set` to a dependency, with Erlang support
-- [ ] Consider a lib for tab completion framework
+- [ ] Consider extracting `kindly/set` as a library, with Erlang support
+- [ ] Consider extracting tab completion framework as a library
 
 ## Kindly `>= v1.1.0`
 
 - [ ] Add `--in` support for monorepos (review:
-      [https://github.com/gleam-lang/gleam/discussions/3859](https://github.com/gleam-lang/gleam/discussions/3859))
+      [gleam/issues/5653](https://github.com/gleam-lang/gleam/issues/5653),
+      [gleam/discussions/3859](https://github.com/gleam-lang/gleam/discussions/3859))
 - [ ] Add fuzzy matching support
 - [ ] Add theme config support
 - [ ] Make colour printing degrade gracefully

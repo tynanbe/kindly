@@ -191,9 +191,9 @@ nice fit.
 # Add kindly to your Gleam project’s dev dependencies
 gleam add --dev kindly
 # Print help info
-gleam run --module kindly
+gleam run --target javascript --module kindly
 # Run an example task
-gleam run -m kindly -- format-check
+gleam run -t js -m kindly -- format-check
 ```
 
 </details>

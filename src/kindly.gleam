@@ -136,6 +136,7 @@ pub type Never
 
 /// Finds a `Handbook` or interactively tries to write a new one.
 ///
+@external(erlang, "kindly", "panic_from_erlang_main")
 @internal
 pub fn main() -> Promise(Never) {
   use Args(cue:, help:, new:, ..) as args <- exit_unless(
@@ -216,6 +217,14 @@ pub fn main() -> Promise(Never) {
       exit(code: 1)
     }
   }
+}
+
+/// Fails loudly when attempting to run Kindly's CLI via
+/// `gleam run -t erlang -m kindly`.
+///
+@internal
+pub fn panic_from_erlang_main() -> Never {
+  panic as "Kindly’s CLI runs with JavaScript.\n\nUse the `kindly` command from npm or jsr instead of `gleam run -t erlang -m kindly`."
 }
 
 /// A type for holding info about the arguments given to the program.
@@ -523,7 +532,7 @@ fn do_new() -> Promise(Result(Nil, Nil)) {
     |> promise.resolve
   })
 
-  dir |> set_gleam_project
+  let _ = dir |> set_gleam_project
 
   use project <- promise.try_await(case gleam_project() {
     "" -> "What is your project’s name?" |> get_line(or: "new project")
@@ -1948,6 +1957,7 @@ pub opaque type Handbook {
 
 /// Returns a new Kindly `Handbook` with the given project name.
 ///
+@external(erlang, "kindly", "panic_from_erlang_api1")
 pub fn handbook(for name: String) -> Handbook {
   Handbook(name:, tasks: [], theme: default_theme(), run: main) |> update
 }
@@ -1981,6 +1991,7 @@ pub type Theme {
 
 /// Applies the given `Theme` to Kindly output.
 ///
+@external(erlang, "kindly", "panic_from_erlang_api2")
 pub fn theme(handbook: Handbook, with theme: Theme) -> Handbook {
   Handbook(..handbook, theme:) |> update
 }
@@ -1989,6 +2000,7 @@ pub fn theme(handbook: Handbook, with theme: Theme) -> Handbook {
 ///
 /// This theme uses a selection of the terminal's configured colours.
 ///
+@external(erlang, "kindly", "panic_from_erlang_api")
 pub fn default_theme() -> Theme {
   let blue = 34
   let cyan = 36
@@ -2012,6 +2024,7 @@ pub fn default_theme() -> Theme {
 
 /// Returns a Gleam-inspired `Theme`.
 ///
+@external(erlang, "kindly", "panic_from_erlang_api")
 pub fn gleam_theme() -> Theme {
   let bit8 = fn(code) { [38, 5, code] }
   let blue = bit8(123)
@@ -2032,6 +2045,7 @@ pub fn gleam_theme() -> Theme {
 
 /// Returns a `Theme` that uses the terminal's default display style.
 ///
+@external(erlang, "kindly", "panic_from_erlang_api")
 pub fn plain_theme() -> Theme {
   Theme(
     ..default_theme(),
@@ -2048,6 +2062,7 @@ pub fn plain_theme() -> Theme {
 
 /// Returns a function that styles a `String` with the given ANSI codes.
 ///
+@external(erlang, "kindly", "panic_from_erlang_api1")
 pub fn styler(will_apply styles: List(Int)) -> fn(String) -> String {
   fn(content) { content |> ansi(apply: styles) }
 }
@@ -2073,6 +2088,7 @@ type TaskResult =
 /// The given `action` is provided a `List` of argument strings and must return
 /// a `Promise(Result(Nil, Nil))` indicating success.
 ///
+@external(erlang, "kindly", "panic_from_erlang_api4")
 pub fn task(
   handbook: Handbook,
   doc doc: String,
@@ -2091,6 +2107,7 @@ pub fn task(
 /// As with `task`, the given `action` is also provided a `List` of argument
 /// strings and must return a `Promise(Result(Nil, Nil))` indicating success.
 ///
+@external(erlang, "kindly", "panic_from_erlang_api4")
 pub fn task_with_tasks(
   handbook: Handbook,
   doc doc: String,
@@ -2117,6 +2134,7 @@ pub fn task_with_tasks(
 /// Conceptually similar to `map`, but with the aforementioned structural
 /// conveniences.
 ///
+@external(erlang, "kindly", "panic_from_erlang_api4")
 pub fn group(
   handbook: Handbook,
   doc doc: String,
@@ -2145,6 +2163,7 @@ pub fn group(
 /// Can be used in the main `Handbook` builder pipeline, for example, to keep
 /// tasks together with logic used to generate them.
 ///
+@external(erlang, "kindly", "panic_from_erlang_api2")
 pub fn map(handbook: Handbook, with f: fn(Handbook) -> Handbook) -> Handbook {
   f(handbook) |> update
 }
@@ -2156,6 +2175,7 @@ pub fn map(handbook: Handbook, with f: fn(Handbook) -> Handbook) -> Handbook {
 /// Enables chaining function calls such that each `step` can only run after the
 /// previous `step` succeeded.
 ///
+@external(erlang, "kindly", "panic_from_erlang_api2")
 pub fn step(
   f: fn() -> Promise(Result(a, b)),
   then do: fn(a) -> Promise(Result(c, d)),
@@ -2171,6 +2191,7 @@ pub fn step(
 /// Combines `step` and `command`, enabling function chains akin to shell `&&`
 /// sequences.
 ///
+@external(erlang, "kindly", "panic_from_erlang_api3")
 pub fn command_step(
   run bin: String,
   with args: List(String),
@@ -2184,6 +2205,7 @@ pub fn command_step(
 /// Promises to return an `Ok(Nil)` result. Useful for ending a multistep `Task`
 /// successfully.
 ///
+@external(erlang, "kindly", "panic_from_erlang_api")
 pub fn resolve() -> TaskResult {
   Ok(Nil) |> promise.resolve
 }
@@ -2191,6 +2213,7 @@ pub fn resolve() -> TaskResult {
 /// Promises to return an `Error(Nil)` result. Useful for ending a multistep
 /// `Task` in failure.
 ///
+@external(erlang, "kindly", "panic_from_erlang_api")
 pub fn reject() -> TaskResult {
   Error(Nil) |> promise.resolve
 }
@@ -2202,6 +2225,7 @@ pub fn reject() -> TaskResult {
 /// environment variable is truthy; likewise, if `kindly`'s output is piped,
 /// unless the `COLOR` or `COLOUR` environment variable is `always`.
 ///
+@external(erlang, "kindly", "panic_from_erlang_api2")
 @external(javascript, "./kindly_ffi.ts", "ansi")
 pub fn ansi(to content: String, apply styles: List(Int)) -> String
 
@@ -2211,12 +2235,14 @@ pub fn ansi(to content: String, apply styles: List(Int)) -> String
 ///
 /// Returns a `Result(Nil, Nil)` indicating the command's success.
 ///
+@external(erlang, "kindly", "panic_from_erlang_api2")
 @external(javascript, "./kindly_ffi.ts", "command")
 pub fn command(run bin: String, with args: List(String)) -> TaskResult
 
 /// Returns a function that discards its input and just runs `command` with the
 /// given arguments.
 ///
+@external(erlang, "kindly", "panic_from_erlang_api2")
 pub fn just(run bin: String, with args: List(String)) -> fn(a) -> TaskResult {
   fn(_) { command(run: bin, with: args) }
 }
@@ -2232,6 +2258,7 @@ pub type IoStream {
 /// Returns a `Bool` indicating whether the given Standard IO stream is a
 /// terminal (TTY).
 ///
+@external(erlang, "kindly", "panic_from_erlang_api1")
 pub fn is_terminal(io_stream: IoStream) -> Bool {
   case io_stream {
     Stdin -> "stdin"
@@ -2253,22 +2280,26 @@ fn set_gleam_project(dir: String) -> Nil
 /// Results in the value of the given environment variable on success, or `Nil`
 /// if the variable is unset.
 ///
+@external(erlang, "kindly", "panic_from_erlang_api1")
 @external(javascript, "./kindly_ffi.ts", "get_env")
 pub fn get_env(name name: String) -> Result(String, Nil)
 
 /// Sets an environment variable to the given value.
 ///
+@external(erlang, "kindly", "panic_from_erlang_api2")
 @external(javascript, "./kindly_ffi.ts", "set_env")
 pub fn set_env(name name: String, value value: String) -> Nil
 
 /// Ensures the given environment variable is no longer set.
 ///
+@external(erlang, "kindly", "panic_from_erlang_api1")
 @external(javascript, "./kindly_ffi.ts", "unset_env")
 pub fn unset_env(name name: String) -> Nil
 
 /// Returns a monotonic timestamp for the current time in milliseconds, rounded
 /// down.
 ///
+@external(erlang, "kindly", "panic_from_erlang_api")
 @external(javascript, "./kindly_ffi.ts", "now")
 pub fn now() -> Int
 
@@ -2276,6 +2307,34 @@ pub fn now() -> Int
 ///
 /// Exported here so it works after bundling.
 ///
+@external(erlang, "kindly", "panic_from_erlang_api1")
 @external(javascript, "./kindly_ffi.ts", "option_to_optional")
 @internal
 pub fn option_to_optional(option: Option(a)) -> a
+
+/// Fails loudly when attempting to run Kindly's API with Erlang.
+///
+@internal
+pub fn panic_from_erlang_api() -> Never {
+  panic as "Kindly’s API cannot be run with Erlang!"
+}
+
+@internal
+pub fn panic_from_erlang_api1(_) -> Never {
+  panic_from_erlang_api()
+}
+
+@internal
+pub fn panic_from_erlang_api2(_, _) -> Never {
+  panic_from_erlang_api()
+}
+
+@internal
+pub fn panic_from_erlang_api3(_, _, _) -> Never {
+  panic_from_erlang_api()
+}
+
+@internal
+pub fn panic_from_erlang_api4(_, _, _, _) -> Never {
+  panic_from_erlang_api()
+}
