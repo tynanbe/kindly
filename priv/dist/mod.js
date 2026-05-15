@@ -2872,16 +2872,17 @@ var generated_default = {
 //#region src/kindly_ffi.ts
 const { events, fs, process, spawn } = await (async () => !globalThis.Deno ? {
 	events: await import("node:events"),
-	fs: await import("node:fs"),
+	fs: await import("node:fs/promises"),
 	process: (await import("node:process")).default,
 	spawn: (await import("node:child_process")).spawn
 } : {})();
 const Nil = void 0;
+const kindly_build_dir = path.join("build", "kindly");
 const handbook_modules = [
-	[path.join("dev", "handbook.gleam"), (name) => path.join("build", "dev", "javascript", name, "handbook.mjs")],
-	["handbook.ts", () => Nil],
-	["handbook.mjs", () => Nil],
-	["handbook.js", () => Nil]
+	[path.join("dev", "handbook.gleam"), path.join(kindly_build_dir, "handbook.mjs")],
+	["handbook.ts", Nil],
+	["handbook.mjs", Nil],
+	["handbook.js", Nil]
 ];
 const project_root_indicators = [
 	".git",
@@ -2932,18 +2933,17 @@ if (!Kindly) {
 	let seen = "";
 	search: while (dir !== seen) {
 		for (const [handbook, compiled] of handbook_modules) {
-			if (file_is_readable(path.join(dir, handbook))) {
-				set_gleam_project(dir);
+			if (await file_is_readable(path.join(dir, handbook))) {
+				await set_gleam_project(dir);
 				Kindly.project_root = dir;
-				Kindly.handbook_module = path.join(dir, compiled(Kindly.gleam_project) ?? handbook);
+				Kindly.handbook_module = path.join(dir, compiled ?? handbook);
 				break search;
 			}
 			if (Kindly.project_root !== current_directory() && dir !== path_dirname(Kindly.project_root) && dir !== path_dirname(path_dirname(Kindly.project_root))) break search;
-			for (const indicator of project_root_indicators) if (file_is_readable(path.join(dir, indicator))) {
+			if (await Promise.any(project_root_indicators.map((x) => file_is_readable(path.join(dir, x))))) {
 				const { project_root } = Kindly;
 				Kindly.project_root = dir;
 				if (project_root !== current_directory()) break search;
-				break;
 			}
 		}
 		seen = dir;
@@ -2954,24 +2954,21 @@ function env(name) {
 	return process ? process.env[name] : Deno.env.get(name);
 }
 /**
-* Sets global state for `gleam_project` after trying to read a project name
-* from `gleam.toml`.
+* Promises to set global state for `gleam_project` after trying to read a
+* project name from `gleam.toml`.
 *
 * @internal
 */
-function set_gleam_project(dir) {
-	try {
-		const gleam_config = path.join(dir, "gleam.toml");
-		const content = fs ? fs.readFileSync(gleam_config, { encoding: "utf8" }) : Deno.readTextFileSync(gleam_config);
-		const re = new RegExp([
-			"(?:^|\n)",
-			"name",
-			"=",
-			`["'](.*?)["']`,
-			"(?:\n|$)"
-		].join("(?: |	)*"));
-		Kindly.gleam_project = content.match(re)?.[1] ?? "";
-	} catch {}
+async function set_gleam_project(dir) {
+	const content = await file_read(path.join(dir, "gleam.toml"), "utf-8") ?? "";
+	const re = new RegExp([
+		"(?:^|\n)",
+		"name",
+		"=",
+		`["'](.*?)["']`,
+		"(?:\n|$)"
+	].join("(?: |	)*"));
+	Kindly.gleam_project = re.exec(content)?.[1] ?? "";
 }
 /**
 * Returns a `Bool` indicating whether the given Standard IO stream is a
@@ -3094,17 +3091,22 @@ function current_directory() {
 	return (process ? process : Deno).cwd();
 }
 /**
-* Determines whether the given path exists and is readable.
+* Promises to determine whether the given path exists and is readable.
 */
-function file_is_readable(path) {
+async function file_is_readable(path) {
 	try {
-		if (fs) {
-			const fd = fs.openSync(path, "r");
-			fs.close(fd);
-		} else Deno.openSync(path, { read: true }).close();
+		(await (fs ? fs.open(path, "r") : Deno.open(path, { read: true }))).close();
 		return true;
 	} catch {
 		return false;
+	}
+}
+async function file_read(path, encoding) {
+	try {
+		const content = await (fs ? fs : Deno).readFile(path);
+		return encoding !== Nil ? new TextDecoder(encoding).decode(content) : content;
+	} catch {
+		return Nil;
 	}
 }
 /**

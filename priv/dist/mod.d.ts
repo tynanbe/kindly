@@ -59,8 +59,8 @@ type Kindly = {
 };
 declare let Kindly: Kindly | undefined;
 /**
- * Sets global state for `gleam_project` after trying to read a project name
- * from `gleam.toml`.
+ * Promises to set global state for `gleam_project` after trying to read a
+ * project name from `gleam.toml`.
  *
  * @internal
  */

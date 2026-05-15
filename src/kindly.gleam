@@ -1,5 +1,5 @@
-//// Provides Kindly's main API for defining, selecting, and running project
-//// tasks through a `Handbook`.
+//// This module provides Kindly's main API for defining, selecting, and running
+//// project tasks through a `Handbook`.
 ////
 //// When run as an app, Kindly finds the current project's `Handbook`, or
 //// interactively offers to create a new one, and runs selected tasks from it.
@@ -168,7 +168,9 @@ pub fn main() -> Promise(Never) {
     }
   })
 
-  case get_handbook() {
+  use result <- promise.await(get_handbook())
+
+  case result {
     Ok(run_handbook) -> run_handbook()
 
     _ if cue != None ->
@@ -525,14 +527,16 @@ fn do_new() -> Promise(Result(Nil, Nil)) {
     False -> [current_directory(), dir] |> path_join
   }
 
-  use <- bool.lazy_guard(when: not_(dir |> file_is_readable), return: fn() {
+  use dir_is_readable <- promise.await(dir |> file_is_readable)
+
+  use <- bool.lazy_guard(when: not_(dir_is_readable), return: fn() {
     "project root directory is unreadable"
     |> print_error
     |> Error
     |> promise.resolve
   })
 
-  let _ = dir |> set_gleam_project
+  use _ <- promise.await(dir |> set_gleam_project)
 
   use project <- promise.try_await(case gleam_project() {
     "" -> "What is your project’s name?" |> get_line(or: "new project")
@@ -563,7 +567,10 @@ fn do_new() -> Promise(Result(Nil, Nil)) {
       |> get_bool(or: True)
   })
 
-  let has_handbookjs = [dir, "handbook.js"] |> path_join |> file_is_readable
+  use has_handbookjs <- promise.await(
+    [dir, "handbook.js"] |> path_join |> file_is_readable,
+  )
+
   let path =
     case should_use_gleam {
       True -> [dir, "dev", "handbook.gleam"]
@@ -573,7 +580,9 @@ fn do_new() -> Promise(Result(Nil, Nil)) {
     }
     |> path_join
 
-  use should_write <- promise.try_await(case path |> file_is_readable {
+  use path_is_readable <- promise.await(path |> file_is_readable)
+
+  use should_write <- promise.try_await(case path_is_readable {
     True ->
       { "The file " <> file(path) <> " already exists." <> overwrite_() }
       |> get_bool(or: False)
@@ -589,7 +598,7 @@ fn do_new() -> Promise(Result(Nil, Nil)) {
 
   let should_use_deno = runtime_is_deno()
 
-  let success =
+  use success <- promise.await(
     case should_use_gleam {
       True -> gleam_handbook
 
@@ -602,7 +611,8 @@ fn do_new() -> Promise(Result(Nil, Nil)) {
         |> string.replace(each: "{{module}}", with: "@tynanbe/kindly")
     }
     |> string.replace(each: "{{project}}", with: project)
-    |> file_write(to: path, mode: 0o644, force: True)
+    |> file_write(to: path, mode: 0o644, force: True),
+  )
 
   use <- bool.lazy_guard(when: success != Ok(True), return: fn() {
     "failed writing handbook"
@@ -1864,13 +1874,14 @@ fn current_directory() -> String
 @external(javascript, "./kindly_ffi.ts", "exit")
 fn exit(code code: Int) -> Promise(Never)
 
-/// Determines whether the given path exists and is readable.
+/// Promises to determine whether the given path exists and is readable.
 ///
 @external(javascript, "./kindly_ffi.ts", "file_is_readable")
-fn file_is_readable(path path: String) -> Bool
+fn file_is_readable(path path: String) -> Promise(Bool)
 
-/// Tries to write the given content to a file with the given path and octal
-/// mode, optionally overwriting a pre-existing file.
+/// Promises to try writing a file to the given `path`, setting `content` and
+/// octal `mode`, creating directories as needed, and optionally overwriting a
+/// pre-existing file,
 ///
 @external(javascript, "./kindly_ffi.ts", "file_write")
 fn file_write(
@@ -1878,13 +1889,13 @@ fn file_write(
   with content: String,
   mode mode: Int,
   force overwrite: Bool,
-) -> Result(Bool, Nil)
+) -> Promise(Result(Bool, Nil))
 
-/// Returns the `run` function from the project's `Handbook`, if found, or an
-/// `Error(Nil)` otherwise.
+/// Promises to result in the `run` function from the project's `Handbook`, if
+/// found, or an `Error(Nil)` otherwise.
 ///
 @external(javascript, "./kindly_ffi.ts", "get_handbook")
-fn get_handbook() -> Result(fn() -> Promise(Never), Nil)
+fn get_handbook() -> Promise(Result(fn() -> Promise(Never), Nil))
 
 /// Returns the name of the current project read from `gleam.toml`, otherwise an
 /// empty `String`.
@@ -2271,11 +2282,11 @@ pub fn is_terminal(io_stream: IoStream) -> Bool {
 @external(javascript, "./kindly_ffi.ts", "is_terminal")
 fn do_is_terminal(stream: String) -> Bool
 
-/// Sets global state for `gleam_project` after trying to read a project name
-/// from `gleam.toml`.
+/// Promises to set global state for `gleam_project` after trying to read a
+/// project name from `gleam.toml`.
 ///
 @external(javascript, "./kindly_ffi.ts", "set_gleam_project")
-fn set_gleam_project(dir: String) -> Nil
+fn set_gleam_project(dir: String) -> Promise(Nil)
 
 /// Results in the value of the given environment variable on success, or `Nil`
 /// if the variable is unset.
