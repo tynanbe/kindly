@@ -16,7 +16,8 @@
       "priv/dist",
       "src/generated.ts",
       "src/javascript_api.ts",
-      "src/kindly_ffi.ts"
+      "src/kindly_ffi.ts",
+      "src/vendor"
     ]
   },
   "fmt": {
@@ -27,6 +28,9 @@
       "dev/",
       "src/",
       "test/"
+    ],
+    "exclude": [
+      "src/vendor"
     ]
   },
   "lint": {
@@ -35,6 +39,9 @@
       "dev/",
       "src/",
       "test/"
+    ],
+    "exclude": [
+      "src/vendor"
     ],
     "rules": {
       "tags": ["recommended"],

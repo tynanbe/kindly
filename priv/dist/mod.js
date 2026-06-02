@@ -1,4 +1,4 @@
-import { t as __exportAll } from "./chunk-pbuEa-1d.js";
+import { t as __exportAll } from "./chunk-D7D4PA-g.js";
 import * as kindly from "./kindly.js";
 import { main } from "./kindly.js";
 import path from "node:path";
@@ -136,6 +136,14 @@ var generated_default = {
 		110,
 		101,
 		114
+	]),
+	min_gleam_version: new Uint8Array([
+		49,
+		46,
+		49,
+		52,
+		46,
+		48
 	]),
 	completion: {
 		bash: new Uint8Array([
@@ -2877,9 +2885,9 @@ const { events, fs, process, spawn } = await (async () => !globalThis.Deno ? {
 	spawn: (await import("node:child_process")).spawn
 } : {})();
 const Nil = void 0;
-const kindly_build_dir = path.join("build", "kindly");
+const handbook_runner_dir = path.join("build", "kindly", "handbook_runner");
 const handbook_modules = [
-	[path.join("dev", "handbook.gleam"), path.join(kindly_build_dir, "handbook.mjs")],
+	[path.join("dev", "handbook.gleam"), path.join(handbook_runner_dir, "build", "dev", "javascript", "kindly_handbook_runner", "handbook.mjs")],
 	["handbook.ts", Nil],
 	["handbook.mjs", Nil],
 	["handbook.js", Nil]
@@ -2905,7 +2913,7 @@ const project_root_indicators = [
 const kindly_global = globalThis;
 let Kindly = kindly_global.Kindly;
 if (!Kindly) {
-	const decoder = new TextDecoder();
+	const decoder = new TextDecoder("utf-8");
 	kindly_global.Kindly = Kindly = {
 		should_style: env("NO_COLOR") || env("NO_COLOUR") ? "never" : env("COLOR") ?? env("COLOUR") ?? "auto",
 		is_terminal: {
@@ -2922,6 +2930,7 @@ if (!Kindly) {
 		stdin: "",
 		version: decoder.decode(generated_default.version),
 		description: decoder.decode(generated_default.description),
+		min_gleam_version: decoder.decode(generated_default.min_gleam_version),
 		project_root: current_directory(),
 		gleam_project: "",
 		handbook_module: ""
@@ -2940,7 +2949,7 @@ if (!Kindly) {
 				break search;
 			}
 			if (Kindly.project_root !== current_directory() && dir !== path_dirname(Kindly.project_root) && dir !== path_dirname(path_dirname(Kindly.project_root))) break search;
-			if (await Promise.any(project_root_indicators.map((x) => file_is_readable(path.join(dir, x))))) {
+			if ((await Promise.all(project_root_indicators.map((x) => file_is_readable(path.join(dir, x))))).some(Boolean)) {
 				const { project_root } = Kindly;
 				Kindly.project_root = dir;
 				if (project_root !== current_directory()) break search;
@@ -3034,38 +3043,63 @@ function ansi(content, style, ...styles) {
 async function command(bin, arg, ...args) {
 	arg = typeof arg === "string" ? [arg] : arg;
 	args = [...arg, ...args];
+	return (await do_command(bin, args))?.success ? Result$Ok(Nil) : Result$Error(Nil);
+}
+async function do_command(bin, args, options = {}) {
+	options.cwd ??= ".";
+	options.stdin ??= "inherit";
+	options.stdout ??= "inherit";
+	options.stderr ??= "inherit";
+	const { cwd, stdin, stdout, stderr } = options;
+	const output = {
+		code: 1,
+		stderr: "",
+		stdout: "",
+		success: false
+	};
+	const decoder = new TextDecoder("utf-8");
 	const pass_on = () => Nil;
 	if (events && process) process.on("SIGINT", pass_on);
 	else Deno.addSignalListener("SIGINT", pass_on);
 	try {
-		const cwd = ".";
-		const stdin = "inherit";
-		const stdout = "inherit";
-		const stderr = "inherit";
 		if (spawn) return await new Promise((resolve) => {
-			spawn(bin, args, {
+			const child_process = spawn(bin, args, {
 				cwd,
 				env: process.env,
 				stdio: [
-					stdin,
-					stdout,
-					stderr
+					stdin === "null" ? "ignore" : stdin,
+					stdout === "piped" ? "pipe" : stdout,
+					stderr === "piped" ? "pipe" : stderr
 				],
 				windowsHide: true
-			}).on("close", (code) => {
-				resolve(!(code ?? 1) ? Result$Ok(Nil) : Result$Error(Nil));
+			});
+			child_process.stderr?.on("data", (data) => {
+				output.stderr += decoder.decode(data);
+			});
+			child_process.stdout?.on("data", (data) => {
+				output.stdout += decoder.decode(data);
+			});
+			child_process.on("close", (code) => {
+				output.code = code ?? 1;
+				output.success = !output.code;
+				resolve(code !== null ? output : Nil);
 			});
 		});
-		else return (await new Deno.Command(bin, {
+		const command_output = await new Deno.Command(bin, {
 			args,
 			cwd,
 			env: Deno.env.toObject(),
 			stdin,
 			stdout,
 			stderr
-		}).output()).success ? Result$Ok(Nil) : Result$Error(Nil);
+		}).output();
+		output.code = command_output.code;
+		if (stderr === "piped") output.stderr = decoder.decode(command_output.stderr);
+		if (stdout === "piped") output.stdout = decoder.decode(command_output.stdout);
+		output.success = command_output.success;
+		return output;
 	} catch {
-		return Result$Error(Nil);
+		return;
 	} finally {
 		if (events && process) process.off("SIGINT", pass_on);
 		else Deno.removeSignalListener("SIGINT", pass_on);
@@ -3103,10 +3137,11 @@ async function file_is_readable(path) {
 }
 async function file_read(path, encoding) {
 	try {
-		const content = await (fs ? fs : Deno).readFile(path);
-		return encoding !== Nil ? new TextDecoder(encoding).decode(content) : content;
+		const content = await (fs ? fs.readFile(path) : Deno.readFile(path));
+		const bytes = new Uint8Array(content);
+		return encoding !== Nil ? new TextDecoder(encoding).decode(bytes) : bytes;
 	} catch {
-		return Nil;
+		return;
 	}
 }
 /**

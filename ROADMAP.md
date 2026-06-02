@@ -2,7 +2,7 @@
 
 ## Kindly `v1.0.0`
 
-- [ ] Compile Kindly, Gleam handbooks (`-t js`) from Erlang-only Gleam projects
+- [x] Compile Kindly, Gleam handbooks (`-t js`) from Erlang-only Gleam projects
 - [ ] Clean up API
   - [ ] Remove `theme`, `default_theme`, `plain_theme`, `gleam_theme`, `styler`
   - [ ] Consider removing `ansi`

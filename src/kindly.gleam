@@ -173,6 +173,11 @@ pub fn main() -> Promise(Never) {
   case result {
     Ok(run_handbook) -> run_handbook()
 
+    Error(message) if message != "no handbook to run" -> {
+      message |> print_error
+      exit(code: 1)
+    }
+
     _ if cue != None ->
       exit(code: case run_cue(with: args, from: "blank" |> handbook) {
         Ok(_) -> 0
@@ -1895,7 +1900,7 @@ fn file_write(
 /// found, or an `Error(Nil)` otherwise.
 ///
 @external(javascript, "./kindly_ffi.ts", "get_handbook")
-fn get_handbook() -> Promise(Result(fn() -> Promise(Never), Nil))
+fn get_handbook() -> Promise(Result(fn() -> Promise(Never), String))
 
 /// Returns the name of the current project read from `gleam.toml`, otherwise an
 /// empty `String`.

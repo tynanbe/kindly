@@ -3,6 +3,7 @@ import type { List, Result as Result$ } from "../prelude.d.mts";
 // TODO: toList
 import {
   Result$Error,
+  Result$Error$0,
   Result$isError,
   Result$Ok,
   toList,
@@ -11,6 +12,21 @@ import {
 import type { None, Some } from "../gleam_stdlib/gleam/option.d.mts";
 import { unwrap as option_unwrap } from "../gleam_stdlib/gleam/option.mjs";
 import generated from "./generated.ts";
+import toml_runtime from "./vendor/smol_toml/dist/index.js";
+
+type TomlTable = { [key: string]: TomlValue };
+type TomlValue =
+  | string
+  | number
+  | bigint
+  | boolean
+  | Array<TomlValue>
+  | TomlTable;
+
+const toml = toml_runtime as unknown as {
+  parse(input: string): TomlTable;
+  stringify(input: TomlTable): string;
+};
 
 // TODO: review
 export type { List } from "../prelude.d.mts";
@@ -47,11 +63,19 @@ const Nil = undefined;
  */
 export type Result<T, E> = Omit<Result$<T, E>, "__gleam">;
 
-const kindly_build_dir = path.join("build", "kindly");
+const handbook_runner_dir = path.join("build", "kindly", "handbook_runner");
+const handbook_runner_package = "kindly_handbook_runner";
 
 const gleam_handbook: [string, string] = [
   path.join("dev", "handbook.gleam"),
-  path.join(kindly_build_dir, "handbook.mjs"),
+  path.join(
+    handbook_runner_dir,
+    "build",
+    "dev",
+    "javascript",
+    handbook_runner_package,
+    "handbook.mjs",
+  ),
 ];
 const handbook_modules: Array<[string, string | Nil]> = [
   gleam_handbook,
@@ -90,6 +114,7 @@ type Kindly = {
   gleam_project: string;
   handbook_module: string;
   is_terminal: { stdin: boolean; stdout: boolean; stderr: boolean };
+  min_gleam_version: string;
   project_root: string;
   should_style: string;
   stdin: string;
@@ -101,7 +126,7 @@ const kindly_global = globalThis as { Kindly?: Kindly };
 let Kindly = kindly_global.Kindly;
 
 if (!Kindly) {
-  const decoder = new TextDecoder();
+  const decoder = new TextDecoder("utf-8");
 
   kindly_global.Kindly = Kindly = {
     should_style: env("NO_COLOR") || env("NO_COLOUR")
@@ -121,6 +146,7 @@ if (!Kindly) {
     stdin: "",
     version: decoder.decode(generated.version),
     description: decoder.decode(generated.description),
+    min_gleam_version: decoder.decode(generated.min_gleam_version),
     project_root: current_directory(),
     gleam_project: "",
     handbook_module: "",
@@ -158,10 +184,15 @@ if (!Kindly) {
       ) {
         break search;
       }
-      // deno-lint-ignore no-await-in-loop
-      const has_indicator = await Promise.any(
-        project_root_indicators.map((x) => file_is_readable(path.join(dir, x))),
-      );
+      const has_indicator = (
+        // Project root search is ordered
+        // deno-lint-ignore no-await-in-loop
+        await Promise.all(
+          project_root_indicators.map((x) =>
+            file_is_readable(path.join(dir, x))
+          ),
+        )
+      ).some(Boolean);
       if (has_indicator) {
         const { project_root } = Kindly;
         Kindly.project_root = dir;
@@ -259,209 +290,185 @@ export function project_root(): string {
  * @internal
  */
 export async function get_handbook(): Promise<
-  Result<() => Promise<never> | never, Nil>
+  Result<() => Promise<never>, string>
 > {
-  await maybe_build_gleam_handbook();
+  const build_result = await maybe_build_gleam_handbook();
 
-  return Kindly!.handbook_module
-    ? Result$Ok(async () => {
-      try {
-        const mod = await import(Kindly!.handbook_module) as unknown;
-        if (typeof mod !== "object" || mod === null) {
-          throw new Error("can’t run handbook");
-        }
-        let x: unknown;
-        if ("main" in mod && mod.main instanceof Function) {
-          x = mod.main();
-        } else if ("default" in mod) {
-          x = mod.default;
-        }
-        if (!(x instanceof Object)) {
-          throw new Error("can’t run handbook");
-        }
-        const handbook = "handbook" in x ? x.handbook : x;
-        if (!(handbook instanceof Object)) {
-          throw new Error("can’t run handbook");
-        }
-        if ("run" in handbook && handbook.run instanceof Function) {
-          handbook.run();
-        }
-      } catch (error) {
-        console.error(
-          ansi("error", bold, red) +
-            ansi(
-              ": " +
-                (error instanceof Error ? error.message : "can’t run handbook"),
-              bold,
-            ),
-        );
-      }
-    })
-    : Result$Error(Nil);
+  if (Result$isError(build_result)) {
+    return Result$Error(
+      Result$Error$0(build_result) ?? "can’t build `handbook.gleam`",
+    );
+  }
+
+  if (!Kindly!.handbook_module) {
+    return Result$Error("no handbook to run");
+  }
+
+  try {
+    const mod = await import(Kindly!.handbook_module) as unknown;
+    if (typeof mod !== "object" || mod === null) {
+      throw new Error("can’t run handbook");
+    }
+
+    let x: unknown;
+    if ("main" in mod && mod.main instanceof Function) {
+      x = mod.main();
+    } else if ("default" in mod) {
+      x = mod.default;
+    }
+
+    if (!(x instanceof Object)) {
+      throw new Error("can’t run handbook");
+    }
+
+    const handbook = "handbook" in x ? x.handbook : x;
+    if (!(handbook instanceof Object)) {
+      throw new Error("can’t run handbook");
+    }
+
+    if ("run" in handbook && handbook.run instanceof Function) {
+      return Result$Ok(handbook.run as () => Promise<never>);
+    }
+
+    return Result$Error("can’t run handbook");
+  } catch (error) {
+    return Result$Error(
+      error instanceof Error ? error.message : "can’t run handbook",
+    );
+  }
 }
 
 /**
- * Compiles a project's `dev/handbook.gleam` to `build/kindly/handbook.mjs` when
- * it doesn't exist or is outdated.
+ * Compiles a project's `dev/handbook.gleam` with an isolated Gleam runner.
  */
-async function maybe_build_gleam_handbook(): Promise<void | never> {
+async function maybe_build_gleam_handbook(): Promise<Result<Nil, string>> {
   if (!Kindly!.handbook_module.endsWith(gleam_handbook[1])) {
-    return;
+    return Result$Ok(Nil);
   }
 
-  const handbook_files = await gleam_handbook_files();
-  const hash = await generate_hash(handbook_files);
-  const hash_file = path.join(kindly_build_dir, "_kindly_hash");
+  const gleam_version_result = await check_gleam_version();
 
-  if (hash === (await file_read(hash_file, "utf-8"))?.trim()) {
-    return;
+  if (Result$isError(gleam_version_result)) {
+    return gleam_version_result;
   }
 
-  // Required by `gleam compile-package`
-  await (fs ? fs : Deno).mkdir(
-    path.join(kindly_build_dir, "src"),
-    {
-      recursive: true,
-      mode: 0o755,
-    },
-  );
+  if (!main_module_is_gleam()) {
+    const root_build_output = await do_command("gleam", [
+      "build",
+      "--no-print-progress",
+    ], { cwd: Kindly!.project_root });
 
-  const handbook_files_pull = (item_with_pathname: string) => {
-    const index = handbook_files.findIndex(([pathname, _]) =>
-      pathname === item_with_pathname
-    );
-    return handbook_files.splice(index, 1).pop();
-  };
-
-  handbook_files_pull("manifest.toml");
-
-  const config_bytes = handbook_files_pull("gleam.toml")?.[1];
-
-  const config =
-    (config_bytes
-      ? new TextDecoder("utf-8").decode(config_bytes)
-      : `name = ""\n`)
-      .replace(
-        /((?:^|\n)\s*name\s*=\s*["'])[^"']*/,
-        "$1kindly_handbook_" + hash.slice(0, 7),
-      );
-
-  try {
-    await file_write(
-      path.join(kindly_build_dir, "gleam.toml"),
-      config,
-      0o644,
-      true,
-    );
-  } catch (error) {
-    return await fail_building_gleam_handbook(error);
-  }
-
-  const dev_dest = path.join(kindly_build_dir, "dev");
-
-  try {
-    await (fs ? fs.readlink : Deno.readLink)(dev_dest);
-  } catch (error) {
-    try {
-      if (
-        !(error instanceof Error && "code" in error && error.code === "ENOENT")
-      ) {
-        throw new Error();
-      }
-      await (fs
-        ? fs.symlink("../../dev", dev_dest, "dir")
-        : Deno.symlink("../../dev", dev_dest, { type: "dir" }));
-    } catch {
-      try {
-        await Promise.all(
-          handbook_files.map(([pathname, content]) =>
-            file_write(
-              path.join(kindly_build_dir, pathname),
-              content,
-              0o644,
-              true,
-            )
-          ),
-        );
-      } catch (error) {
-        return await fail_building_gleam_handbook(error);
-      }
+    if (!root_build_output) {
+      return Result$Error("can’t build `handbook.gleam`");
     }
   }
 
-  const compiler_result = await command(
-    "gleam",
-    "compile-package",
-    "--target=javascript",
-    "--javascript-prelude=../dev/javascript/prelude.mjs",
-    "--lib=build/dev/javascript",
-    `--package=${kindly_build_dir}`,
-    `--out=${kindly_build_dir}`,
-  );
-
-  if (Result$isError(compiler_result)) {
-    return await fail_building_gleam_handbook();
-  }
-
-  const compiled_handbook_files = await Promise.all(
-    handbook_files.map(async ([pathname, _]): Promise<[string, string]> => {
-      pathname = pathname
-        .replace(/^dev/, kindly_build_dir)
-        .replace(/[.]gleam$/, ".mjs");
-
-      let content = await file_read(pathname, "utf-8");
-
-      if (content === Nil) {
-        return await fail_building_gleam_handbook();
-      }
-
-      const relative_import_re =
-        /^(import [^'"]*?['"])(([.]|[.][.])[/][^'"]+)(['"])/gm;
-
-      const readable_relative_imports = new Set(
-        await Promise.all(
-          Array.from(content.matchAll(relative_import_re)).map(async (
-            [_match, _begin, module, _dots, _end],
-          ) => (await file_is_readable(module ?? "") ? module as string : "")),
-        ),
-      );
-      readable_relative_imports.delete("");
-
-      // Rewrite unreadable relative imports to modules in Gleam build dirs
-      content = content.replaceAll(
-        relative_import_re,
-        (match, begin: string, module: string, dots: string, end: string) =>
-          !readable_relative_imports.has(module)
-            ? begin + module.replace(
-              /[/]/,
-              "." === dots
-                ? "./dev/javascript/" + Kindly!.gleam_project + "/"
-                : "/dev/javascript/",
-            ) + end
-            : match,
-      );
-
-      return [pathname, content];
-    }),
-  );
+  const handbook_files = await gleam_handbook_files();
 
   try {
-    await Promise.all(
-      compiled_handbook_files.map(([pathname, content]) =>
-        file_write(pathname, content, 0o644, true)
-      ),
+    const root_config = new TextDecoder("utf-8").decode(
+      handbook_files.find(([pathname]) => pathname === "gleam.toml")?.[1] ??
+        new Uint8Array(),
     );
+
+    await file_write(
+      path.join(handbook_runner_dir, "gleam.toml"),
+      handbook_runner_config(root_config),
+      0o644,
+      true,
+    );
+    await file_write(
+      path.join(
+        handbook_runner_dir,
+        "src",
+        handbook_runner_package + ".gleam",
+      ),
+      "pub fn main() { Nil }\n",
+      0o644,
+      true,
+    );
+    await ensure_handbook_runner_dev(handbook_files);
   } catch (error) {
-    return await fail_building_gleam_handbook(error);
+    return Result$Error(
+      error instanceof Error ? error.message : "can’t build `handbook.gleam`",
+    );
   }
 
-  await file_write(hash_file, hash, 0o644, true);
+  // Remove stale runner lock before compiling regenerated runner config
+  const remove_manifest = await file_remove(
+    path.join(handbook_runner_dir, "manifest.toml"),
+  );
+
+  if (Result$isError(remove_manifest)) {
+    return Result$Error(
+      "can’t build `handbook.gleam`\n" + Result$Error$0(remove_manifest),
+    );
+  }
+
+  const compiler_output = await do_command("gleam", [
+    "build",
+    "--target=javascript",
+    "--no-print-progress",
+  ], { cwd: handbook_runner_dir });
+
+  if (!compiler_output) {
+    return Result$Error("can’t build `handbook.gleam`");
+  }
+
+  return Result$Ok(Nil);
+}
+
+/**
+ * Parses `gleam --version` output to determine whether it meets Kindly's
+ * minimum Gleam version requirement.
+ */
+async function check_gleam_version(): Promise<Result<Nil, string>> {
+  const min_version = Kindly!.min_gleam_version.split(".").map(Number);
+
+  if (min_version.length !== 3) {
+    return Result$Error("Kindly has an unsupported Gleam version requirement");
+  }
+
+  const gleam_version = await do_command("gleam", ["--version"], {
+    stdout: "piped",
+  });
+
+  if (!gleam_version?.success) {
+    return Result$Error("can’t find `gleam` on `PATH`");
+  }
+
+  const found_version = gleam_version.stdout.match(
+    /\bgleam +v?(\d+)[.](\d+)[.](\d+)\b/,
+  );
+
+  if (!found_version) {
+    return Result$Error("can’t determine `gleam` version");
+  }
+
+  const parsed_version = [
+    Number(found_version[1]),
+    Number(found_version[2]),
+    Number(found_version[3]),
+  ];
+
+  for (const i of [0, 1, 2]) {
+    if (parsed_version[i]! > min_version[i]!) {
+      return Result$Ok(Nil);
+    }
+    if (parsed_version[i]! < min_version[i]!) {
+      return Result$Error(
+        `Kindly requires Gleam >= ${Kindly!.min_gleam_version}, but ` +
+          `\`gleam --version\` is ${parsed_version.join(".")}.`,
+      );
+    }
+  }
+
+  return Result$Ok(Nil);
 }
 
 /**
  * Promises to return a sorted `Array` of tuples with file paths and their
- * contents (as arrays of bytes) needed for `_kindly_hash` and
- * `gleam compile-package`.
+ * contents needed by the handbook runner.
  */
 export async function gleam_handbook_files(): Promise<
   Array<[string, Uint8Array<ArrayBuffer>]>
@@ -493,66 +500,126 @@ export async function gleam_handbook_files(): Promise<
 }
 
 /**
- * Promises to return the combined `SHA-1` hash for Kindly's version together
- * with the project's Gleam handbook files.
+ * Returns a Gleam config for the isolated handbook runner.
  */
-export async function generate_hash(
-  from_files: Array<[string, Uint8Array<ArrayBuffer>]>,
-): Promise<string> {
-  const hash_parts = from_files.reduce<Array<Uint8Array<ArrayBufferLike>>>(
-    (acc, [_, content]) => {
-      acc.push(content);
-      return acc;
-    },
-    [generated.version],
+function handbook_runner_config(root_config: string): string {
+  const table = toml.parse(root_config);
+
+  const dependencies = rewrite_dependencies(
+    toml_table_field(table, "dependencies") ?? {},
+  );
+  const dev_dependencies = rewrite_dependencies(
+    toml_table_field(table, "dev_dependencies") ??
+      toml_table_field(table, "dev-dependencies") ?? {},
   );
 
-  const digest_uint8array = new Uint8Array(
-    await crypto.subtle.digest("SHA-1", uint8array_concat(hash_parts)),
-  );
+  dependencies[Kindly!.gleam_project] = { path: "../../.." };
 
-  return typeof digest_uint8array.toHex === "function"
-    ? digest_uint8array.toHex()
-    : Array.from(digest_uint8array)
-      .map((b) => b.toString(16).padStart(2, "0"))
-      .join("");
+  return toml.stringify({
+    name: handbook_runner_package,
+    version: "0.0.0",
+    target: "javascript",
+    dependencies,
+    dev_dependencies,
+  });
 }
 
 /**
- * Concatenates an `Array<Uint8Array<ArrayBufferLike>>`.
+ * Returns a new `TomlTable` with resolved dependencies rewritten to the host
+ * build package cache prepared by the project root `gleam build` preflight.
  */
-function uint8array_concat(
-  xs: Array<Uint8Array<ArrayBufferLike>>,
-): Uint8Array<ArrayBuffer> {
-  const length = xs.reduce((acc, x) => acc + x.byteLength, 0);
+function rewrite_dependencies(table: TomlTable): TomlTable {
+  const dependencies = structuredClone(table);
 
-  const uint8array = new Uint8Array(length);
-  let offset = 0;
+  for (const [name, dependency] of Object.entries(dependencies)) {
+    const runner_dependency = !is_toml_table(dependency) ||
+        typeof dependency["version"] === "string" ||
+        (typeof dependency["git"] === "string" &&
+          typeof dependency["ref"] === "string")
+      ? { path: path.join("build", "packages", name) }
+      : dependency;
 
-  for (const x of xs) {
-    uint8array.set(x, offset);
-    offset += x.byteLength;
+    if (typeof runner_dependency["path"] === "string") {
+      const absolute_dependency_path = path.resolve(
+        Kindly!.project_root,
+        runner_dependency["path"],
+      );
+
+      const runner_path = path.join(
+        Kindly!.project_root,
+        handbook_runner_dir,
+      );
+
+      const relative_dependency_path = path.relative(
+        runner_path,
+        absolute_dependency_path,
+      );
+
+      runner_dependency["path"] = path_normalize(relative_dependency_path);
+
+      dependencies[name] = runner_dependency;
+    }
   }
 
-  return uint8array;
+  return dependencies;
 }
 
 /**
- * Prints an error message and exits.
+ * Determines whether the given `TomlValue` is a `TomlTable`.
  */
-function fail_building_gleam_handbook(error?: unknown): Promise<never> {
-  console.error(
-    ansi("error", bold, red) +
-      ansi(
-        ": " +
-          (error instanceof Error
-            ? error.message
-            : "can’t build `handbook.gleam`"),
-        bold,
-      ),
-  );
+function is_toml_table(x: TomlValue): x is TomlTable {
+  return typeof x === "object" && !Array.isArray(x) && !(x instanceof Date);
+}
 
-  return exit(1);
+/**
+ * Returns a `TomlTable` field from within the given `TomlTable`, if possible.
+ */
+function toml_table_field(table: TomlTable, key: string): TomlTable | Nil {
+  const value = table[key];
+  return value && is_toml_table(value) ? value : Nil;
+}
+
+/**
+ * Makes the root project's `dev` modules visible to the handbook runner.
+ */
+async function ensure_handbook_runner_dev(
+  handbook_files: Array<[string, Uint8Array<ArrayBuffer>]>,
+): Promise<void> {
+  const dev_source = path.join("..", "..", "..", "dev");
+  const dev_destination = path.join(handbook_runner_dir, "dev");
+
+  try {
+    if (
+      (await (fs ? fs.readlink : Deno.readLink)(dev_destination)) === dev_source
+    ) {
+      return;
+    }
+  } catch { /* Missing or not a readable symlink. */ }
+
+  try {
+    if (fs) {
+      await fs.symlink(dev_source, dev_destination, "dir");
+    } else {
+      await Deno.symlink(dev_source, dev_destination, { type: "dir" });
+    }
+    return;
+  } catch { /* Fall back to copying handbook files below. */ }
+
+  const dev_dir = path.dirname(gleam_handbook[0]);
+  const dev_prefix = dev_dir + path.sep;
+  await Promise.all(
+    handbook_files.map(([pathname, content]) => {
+      if (pathname === dev_dir || pathname.startsWith(dev_prefix)) {
+        return file_write(
+          path.join(handbook_runner_dir, pathname),
+          content,
+          0o644,
+          true,
+        );
+      }
+      return Promise.resolve(Result$Ok(false));
+    }),
+  );
 }
 
 /**
@@ -563,7 +630,7 @@ function fail_building_gleam_handbook(error?: unknown): Promise<never> {
 export function completion_script(
   shell: keyof typeof generated["completion"],
 ): Result<string, Nil> {
-  const script = new TextDecoder().decode(generated.completion[shell]);
+  const script = new TextDecoder("utf-8").decode(generated.completion[shell]);
   return script ? Result$Ok(script) : Result$Error(Nil);
 }
 
@@ -707,6 +774,44 @@ export async function command(
   arg = typeof arg === "string" ? [arg] : arg;
   args = [...arg, ...args];
 
+  const output = await do_command(bin, args);
+
+  return output?.success ? Result$Ok(Nil) : Result$Error(Nil);
+}
+
+async function do_command(
+  bin: string,
+  args: Array<string>,
+  options: {
+    cwd?: string;
+    stdin?: "inherit" | "null";
+    stdout?: "inherit" | "piped";
+    stderr?: "inherit" | "piped";
+  } = {},
+): Promise<
+  | {
+    code: number;
+    stderr: string;
+    stdout: string;
+    success: boolean;
+  }
+  | Nil
+> {
+  options.cwd ??= ".";
+  options.stdin ??= "inherit";
+  options.stdout ??= "inherit";
+  options.stderr ??= "inherit";
+
+  const { cwd, stdin, stdout, stderr } = options;
+
+  const output = {
+    code: 1,
+    stderr: "",
+    stdout: "",
+    success: false,
+  };
+  const decoder = new TextDecoder("utf-8");
+
   // Pass Ctrl+C to spawned process
   const pass_on = () => Nil;
   if (events && process) {
@@ -717,38 +822,55 @@ export async function command(
 
   // Run the command
   try {
-    const cwd = ".";
-    const stdin = "inherit";
-    const stdout = "inherit";
-    const stderr = "inherit";
-
     if (spawn) {
       return await new Promise((resolve) => {
-        spawn(bin, args, {
+        const child_process = spawn(bin, args, {
           cwd,
-          env: process.env,
-          stdio: [stdin, stdout, stderr],
+          env: process!.env,
+          stdio: [
+            stdin === "null" ? "ignore" : stdin,
+            stdout === "piped" ? "pipe" : stdout,
+            stderr === "piped" ? "pipe" : stderr,
+          ],
           windowsHide: true,
-        }).on("close", (code) => {
-          resolve(!(code ?? 1) ? Result$Ok(Nil) : Result$Error(Nil));
+        });
+
+        child_process.stderr?.on("data", (data) => {
+          output.stderr += decoder.decode(data);
+        });
+        child_process.stdout?.on("data", (data) => {
+          output.stdout += decoder.decode(data);
+        });
+        child_process.on("close", (code) => {
+          output.code = code ?? 1;
+          output.success = !output.code;
+
+          resolve(code !== null ? output : Nil);
         });
       });
-    } else {
-      return (await new Deno.Command(bin, {
-          args,
-          cwd,
-          env: Deno.env.toObject(),
-          stdin,
-          stdout,
-          stderr,
-        })
-          .output())
-          .success
-        ? Result$Ok(Nil)
-        : Result$Error(Nil);
     }
+
+    const command_output = await new Deno.Command(bin, {
+      args,
+      cwd,
+      env: Deno.env.toObject(),
+      stdin,
+      stdout,
+      stderr,
+    }).output();
+
+    output.code = command_output.code;
+    if (stderr === "piped") {
+      output.stderr = decoder.decode(command_output.stderr);
+    }
+    if (stdout === "piped") {
+      output.stdout = decoder.decode(command_output.stdout);
+    }
+    output.success = command_output.success;
+
+    return output;
   } catch {
-    return Result$Error(Nil);
+    return Nil;
   } finally {
     if (events && process) {
       process.off("SIGINT", pass_on);
@@ -774,7 +896,12 @@ export function just(
  * Exits the current process with the given status code.
  */
 export function exit(code: number): Promise<never> {
-  return Promise.resolve(process ? process.exit(code) : Deno.exit(code));
+  if (process) {
+    process.exit(code);
+  } else {
+    Deno.exit(code);
+  }
+  throw new Error("unreachable");
 }
 
 /**
@@ -978,15 +1105,33 @@ async function file_read<a>(
 async function file_read(
   path: string,
   encoding?: string,
-): Promise<Uint8Array<ArrayBufferLike> | string | Nil> {
+): Promise<Uint8Array<ArrayBuffer> | string | Nil> {
   try {
-    const content = await (fs ? fs : Deno).readFile(path);
-    return encoding !== Nil
-      ? new TextDecoder(encoding).decode(content)
-      : content;
+    const content = await (fs ? fs.readFile(path) : Deno.readFile(path));
+    const bytes = new Uint8Array(content);
+    return encoding !== Nil ? new TextDecoder(encoding).decode(bytes) : bytes;
   } catch {
     return Nil;
   }
+}
+
+/**
+ * Promises to try removing the given path, succeeding if it doesn't exist.
+ */
+async function file_remove(path: string): Promise<Result<Nil, string>> {
+  try {
+    await (fs ? fs.rm(path) : Deno.remove(path));
+  } catch (error) {
+    const is_missing = fs
+      ? error instanceof Error && "code" in error && error.code ===
+          "ENOENT"
+      : error instanceof Deno.errors.NotFound;
+
+    if (!is_missing) {
+      return Result$Error(String(error));
+    }
+  }
+  return Result$Ok(Nil);
 }
 
 /**

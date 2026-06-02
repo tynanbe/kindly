@@ -12,7 +12,7 @@
     "packageJson": {
       "dependencies": [
         "npm:@types/node@^24.10.4",
-        "npm:tsdown@>=0.21.10 <2.0.0",
+        "npm:tsdown@>=0.22.1 <2.0.0",
         "npm:typescript@^5.9.3"
       ]
     }

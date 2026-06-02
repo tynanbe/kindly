@@ -22,5 +22,5 @@ These examples show a few different styles of use:
 - Multistep tasks using `step` and `command_step`
 
 For a guided introduction, see the
-[Quickstart guide](https://hexdocs.pm/kindly/quickstart.html). For the full API,
-see the [API reference](https://hexdocs.pm/kindly/kindly.html).
+[Quickstart guide](https://kindly.hexdocs.pm/quickstart.html). For the full API,
+see the [API reference](https://kindly.hexdocs.pm/kindly.html).

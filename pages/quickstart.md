@@ -177,6 +177,6 @@ kindly format-check
 
 ## Where Next?
 
-[API Reference](https://hexdocs.pm/kindly/kindly.html)
+[API Reference](https://kindly.hexdocs.pm/kindly.html)
 
-[Examples](https://hexdocs.pm/kindly/examples.html)
+[Examples](https://kindly.hexdocs.pm/examples.html)

@@ -52,6 +52,7 @@ type Kindly = {
     stdout: boolean;
     stderr: boolean;
   };
+  min_gleam_version: string;
   project_root: string;
   should_style: string;
   stdin: string;

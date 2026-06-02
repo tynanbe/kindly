@@ -198,11 +198,18 @@ pub fn main() -> Handbook {
       ]
 
       to("Write `src/generated.ts` module")
-      use <- command_step(run: "sh", with: [
-        "-euc",
-        "bun run - <<'EOF'
-        const { file, TOML, write } = Bun;
+      use <- command_step(run: "bun", with: [
+        "--eval",
+        "const { file, TOML, write } = Bun;
         const config = TOML.parse(await file('gleam.toml').text());
+        const gleam_requirement =
+          (config['gleam'] ?? '').match(/^>= *(\\d+[.]\\d+[.]\\d+)$/);
+        if (!gleam_requirement) {
+          throw new Error(
+            'Kindly’s `gleam.toml` needs a key/value pair matching `\"gleam\" = \">= x.y.z\"`',
+          );
+        }
+        config['min_gleam_version'] = gleam_requirement[1];
         const encoder = new TextEncoder();
         const kindly =
           (key) => `${key}: new Uint8Array([${
@@ -226,6 +233,8 @@ pub fn main() -> Handbook {
 
             ${kindly('description')},
 
+            ${kindly('min_gleam_version')},
+
             completion: {
               ${await completion('bash')},
 
@@ -238,8 +247,7 @@ pub fn main() -> Handbook {
           };
           `
             .replace(/^          /gm, ''),
-        );\nEOF
-      ",
+        );",
       ])
 
       to("Build the project")
