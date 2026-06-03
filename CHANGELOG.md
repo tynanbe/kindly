@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v0.2.0 - 2026-06-02
 
 - Stub loudly failing public API for Erlang so `handbook.gleam` doesn't prevent
   `gleam build -t erlang`.
