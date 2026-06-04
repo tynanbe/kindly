@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v0.2.1 - 2026-06-03
 
 - Fix JSR with a `file://` URL for imported TypeScript/JavaScript handbooks.
 
