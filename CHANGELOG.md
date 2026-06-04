@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Fix JSR with a `file://` URL for imported TypeScript/JavaScript handbooks.
+
 ## v0.2.0 - 2026-06-02
 
 - Stub loudly failing public API for Erlang so `handbook.gleam` doesn't prevent

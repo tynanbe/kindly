@@ -171,7 +171,9 @@ kindly format-check
 > **Note:** If your project uses a `handbook.gleam` or `handbook.ts` module and
 > you want to run it with Node.js, it's recommended to run Node.js v24.0+, for
 > [type stripping](https://nodejs.org/api/typescript.html#type-stripping)
-> support.
+> support. Node.js may also warn about failing to parse your handbook as
+> CommonJS, unless you use a `handbook.mjs` or set `"type": "module"` in
+> `package.json`.
 
 <div id="where-next"></div>
 

@@ -1,4 +1,5 @@
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 import type { List, Result as Result$ } from "../prelude.d.mts";
 // TODO: toList
 import {
@@ -305,7 +306,9 @@ export async function get_handbook(): Promise<
   }
 
   try {
-    const mod = await import(Kindly!.handbook_module) as unknown;
+    const mod = await import(
+      pathToFileURL(Kindly!.handbook_module).href
+    ) as unknown;
     if (typeof mod !== "object" || mod === null) {
       throw new Error("can’t run handbook");
     }
